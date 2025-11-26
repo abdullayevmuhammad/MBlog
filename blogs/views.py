@@ -10,6 +10,9 @@ from .serializers import (
     PostCreateUpdateSerializer,
     CommentSerializer,
 )
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from accounts.serializers import UserShortProfileSerializer
 
 class IsAuthorOrAdminOrReadOnly(permissions.BasePermission):
@@ -37,26 +40,43 @@ class PostViewSet(viewsets.ModelViewSet):
     lookup_value_regex = r"[-a-zA-Z0-9_]+"
 
     def perform_create(self, serializer):
-        post = serializer.save(author=self.request.user)
-
-        author = post.author
+        author = self.request.user
+        post = serializer.save(author=author)
 
         followers = Follow.objects.filter(following=author).select_related('follower')
 
+        channel_layer = get_channel_layer()
         notifications = []
+
         for f in followers:
             if f.follower_id == author.id:
                 continue
 
-            notification = Notification(
-                recipient=f.follower,   # kimga boradi
-                actor=author,           # kim qildi
+            # DB ga yozib qo'yamiz
+            notif = Notification(
+                recipient=f.follower,
+                actor=author,
                 post=post,
                 verb="new_post",
             )
-            notifications.append(notification)
-        Notification.objects.bulk_create(notifications)
+            notifications.append(notif)
 
+            # WebSocket orqali real-time push
+            async_to_sync(channel_layer.group_send)(
+                f"user_{f.follower_id}",
+                {
+                    "type": "send_notification",
+                    "content": {
+                        "verb": "new_post",
+                        "post_title": post.title,
+                        "post_slug": post.slug,
+                        "actor_email": author.email,
+                        "actor_id": author.id,
+                    },
+                },
+            )
+
+        Notification.objects.bulk_create(notifications)
     def get_serializer_class(self):
 
         if self.action == "list":

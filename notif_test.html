@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>MBlog WebSocket Notifications Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .card {
+            background: #020617;
+            margin-top: 40px;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            width: 420px;
+            border: 1px solid #1f2937;
+        }
+        h1 {
+            margin: 0 0 8px;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            background: #1d4ed8;
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 13px;
+        }
+        label {
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #4b5563;
+            margin-top: 4px;
+            margin-bottom: 12px;
+            background: #020617;
+            color: #e5e7eb;
+        }
+        button {
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: none;
+            background: #22c55e;
+            color: #022c22;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button.disconnect {
+            background: #ef4444;
+            color: #fee2e2;
+            margin-left: 8px;
+        }
+        .status {
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .status span {
+            font-weight: 600;
+        }
+        .status-connected {
+            color: #22c55e;
+        }
+        .status-disconnected {
+            color: #f97316;
+        }
+        .status-error {
+            color: #f97316;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+            margin-top: 16px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        li {
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #020617;
+            border: 1px solid #1f2937;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .time {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 3px;
+        }
+        code {
+            font-size: 12px;
+            background: #020617;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>
+        🔔 MBlog Notifications
+        <span class="badge" id="badge">0</span>
+    </h1>
+    <p style="font-size:13px; color:#9ca3af; margin-top:0;">
+        Bu sahifa faqat <code>WebSocket notification</code>larni test qilish uchun.
+    </p>
+
+    <div>
+        <label for="userIdInput">User ID (follower):</label>
+        <input id="userIdInput" type="number" placeholder="Masalan: 1" />
+
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" class="disconnect">Disconnect</button>
+
+        <div class="status">
+            Status: <span id="statusText" class="status-disconnected">Disconnected</span>
+        </div>
+        <div class="status" style="margin-top:4px;">
+            WS URL: <code id="urlPreview"></code>
+        </div>
+    </div>
+
+    <ul id="log"></ul>
+</div>
+
+<script>
+    let socket = null;
+    let notifCount = 0;
+
+    const statusText = document.getElementById("statusText");
+    const badge = document.getElementById("badge");
+    const log = document.getElementById("log");
+    const urlPreview = document.getElementById("urlPreview");
+    const userIdInput = document.getElementById("userIdInput");
+    const connectBtn = document.getElementById("connectBtn");
+    const disconnectBtn = document.getElementById("disconnectBtn");
+
+    function setStatus(text, cls) {
+        statusText.textContent = text;
+        statusText.className = cls;
+    }
+
+    function addLogItem(data) {
+        notifCount += 1;
+        badge.textContent = notifCount;
+
+        const li = document.createElement("li");
+        const title = document.createElement("div");
+        const time = document.createElement("div");
+
+        title.textContent = `[${data.verb || "notification"}] ${data.post_title || ""} (${data.actor_email || ""})`;
+        time.className = "time";
+        time.textContent = new Date().toLocaleTimeString();
+
+        li.appendChild(title);
+        li.appendChild(time);
+        log.prepend(li);
+    }
+
+    connectBtn.addEventListener("click", () => {
+        const userId = userIdInput.value.trim();
+        if (!userId) {
+            alert("Avval user_id kiriting (masalan: 1)");
+            return;
+        }
+
+        const host = window.location.hostname || "127.0.0.1";
+        const url = `ws://${host}:8000/ws/notifications/?user_id=${userId}`;
+        urlPreview.textContent = url;
+
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.close();
+        }
+
+        socket = new WebSocket(url);
+
+        socket.onopen = () => {
+            setStatus("Connected", "status-connected");
+            console.log("WS connected");
+        };
+
+        socket.onmessage = (event) => {
+            console.log("WS message:", event.data);
+            try {
+                const data = JSON.parse(event.data);
+                addLogItem(data);
+            } catch (e) {
+                console.error("JSON parse error:", e);
+            }
+        };
+
+        socket.onclose = () => {
+            setStatus("Disconnected", "status-disconnected");
+            console.log("WS disconnected");
+        };
+
+        socket.onerror = (err) => {
+            setStatus("Error", "status-error");
+            console.error("WS error:", err);
+        };
+    });
+
+    disconnectBtn.addEventListener("click", () => {
+        if (socket) {
+            socket.close();
+        }
+    });
+</script>
+
+</body>
+</html>

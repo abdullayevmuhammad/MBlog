@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'drf_yasg',
+    'channels',
     # created apps
     "accounts",
     "blogs",
@@ -61,6 +62,21 @@ REST_FRAMEWORK = {
         ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
 }
+
+
+# ASGI 
+ASGI_APPLICATION = 'config.asgi.application'
+
+# Channels layer backend
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
