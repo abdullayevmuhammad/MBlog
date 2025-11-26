@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Real-time Notification Test</title>
+</head>
+<body>
+
+<h2>Real-time Notifications</h2>
+
+<p>User ID: {{ request.user.id }}</p>
+
+<ul id="notifications"></ul>
+
+<script>
+    const userId = "{{ request.user.id }}";
+    const socket = new WebSocket(
+        "ws://" + window.location.host + "/ws/notifications/?user_id=" + userId
+    );
+
+    socket.onopen = function () {
+        console.log("%cWebSocket connected", "color: green; font-weight: bold");
+    };
+
+    socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+        console.log("New notification:", data);
+
+        const ul = document.getElementById("notifications");
+        const li = document.createElement("li");
+        li.textContent = data.verb + " | " + data.post_title + " (actor=" + data.actor_id + ")";
+        ul.prepend(li);
+    };
+
+    socket.onclose = function () {
+        console.log("%cWebSocket closed", "color: red; font-weight: bold");
+    };
+</script>
+
+</body>
+</html>

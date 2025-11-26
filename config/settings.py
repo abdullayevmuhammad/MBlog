@@ -36,6 +36,7 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS").split(",")
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -108,7 +109,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

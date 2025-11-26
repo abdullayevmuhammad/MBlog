@@ -38,3 +38,11 @@ urlpatterns += [
 # Serve media files in debug mode
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+########################## TEST ###############################
+from django.shortcuts import render
+
+def notif_test_view(request):
+    return render(request, "notif_test.html")
+
+urlpatterns.append(path('notif-test/', notif_test_view))
